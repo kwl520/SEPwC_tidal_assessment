@@ -1,11 +1,21 @@
-#!/usr/bin/env python3
+
 
 # import the modules you need here
 import argparse
+import pandas as pd
+import matplotlib.pyplot as plt
+import datetime
+import wget
+import os
+import numpy as np
+import uptide
+import pytz
+import math
+import glob
 
 def read_tidal_data(filename):
 
-    return 0
+    return 
     
 def extract_single_year_remove_mean(year, data):
    
@@ -59,5 +69,7 @@ if __name__ == '__main__':
     dirname = args.directory
     verbose = args.verbose
     
+def find_txt_files(directory):
+    return glob.glob(os.path.join(directory, '*.txt'))
 
 
