@@ -54,21 +54,42 @@ def read_tidal_data(filename):
         return data
    
 def test_missing_file_raises_filenotfound():
-#Tests that the read_tidal_data rasies FileNotFoundError.
+#Tests that the read_tidal_data raises FileNotFoundError.
     with pytest.raises(FileNotFoundError):
         read_tidal_data('missing_file.dat')
     return data
 
 def extract_single_year_remove_mean(year, data):
+    """
+    Extracts 'Sea Level' data for a specific year from the DataFrame, then removes the mean
     
-    return 
+    Parameters
+    ----------
+    year : integer
+        The year for which to extract and process data.
+    data : pd.DataFrame
+       The source DataFrame containing 'Sea Level' data.
+
+    Returns
+    -------
+    year_data : pandas.DataFrame
+        A new DataFrame containing 'Sea Level' data for the specified year, with its mean removed from the data. 
+    """
+    # Construct the start and end date strings and then,
+    # extract data from DatetimeIndex,
+    # and calculate the mean from every 'Sea Level' value in the DataFrame
+    year_string_start = str(year)+"0101"
+    year_string_end = str(year)+"1231"
+    year_data = data.loc[year_string_start:year_string_end, ['Sea Level']]
+    # remove mean to oscillate around zero
+    mmm = np.mean(year_data['Sea Level'])
+    year_data['Sea Level'] -= mmm
+    return year_data
 
 
 def extract_section_remove_mean(start, end, data):
     
     return
-
-
 
 
 def join_data(data1, data2):
