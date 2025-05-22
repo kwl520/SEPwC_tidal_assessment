@@ -13,7 +13,6 @@ import glob
 import datetime
 import pytest
 
-
 def read_tidal_data(filename):
     """
     Reads tidal data from multiple files in a directory, processes it, and returns a pandas DataFrame.
@@ -60,9 +59,6 @@ def test_missing_file_raises_filenotfound():
         read_tidal_data('missing_file.dat')
     return data
 
-
-
-
 def extract_single_year_remove_mean(year, data):
     
     return 
@@ -76,9 +72,25 @@ def extract_section_remove_mean(start, end, data):
 
 
 def join_data(data1, data2):
-   combined_data = [data1, data2]
-   return pd.concat(combined_data).sort_index()
+    """
+     Combines two pandas DataFrames containing time-series data into one DataFrame. 
+      
+     Parameters
+     ----------
+     data1 : pandas Dataframe
+         The first DataFrame to join. Expected to have a DatetimeIndex.
+     data2 : pandas Dataframe
+         The second DataFrame to join. Expected to have a DatetimeIndex.
 
+     Returns
+     -------
+     pandas DataFrame
+         A new DataFrame, combining all rows from data1 and data2, and sorting them chronologically through their DatetimeIndex.
+     """
+    #Create a list with two DataFrames to be concatenated, stacking the DataFrames and ordering them chronologically.
+    combined_data = [data1, data2]
+    return pd.concat(combined_data).sort_index()
+    
 
 def sea_level_rise(data):
 
