@@ -38,17 +38,18 @@ def read_tidal_data(filename):
 def extract_single_year_remove_mean(year, data):
     
 
-    return year_data
+    return 
 
 
 def extract_section_remove_mean(start, end, data):
-
+    
 
     return 
 
 
 def join_data(data1, data2):
-   
+   combined_data = [data1, data2]
+   return pd.concat(combined_data).sort_index()
 
 
 def sea_level_rise(data):
