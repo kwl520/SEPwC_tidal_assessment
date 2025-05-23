@@ -166,10 +166,41 @@ def sea_level_rise(data):
     return slope, p_value
 
 def tidal_analysis(data, constituents, start_datetime):
-    
-    return
-   
- 
+    """
+    Performs a tidal analysis on sea level data to extract amplitudes and phases
+    for specified tidal constituents.
+
+    Parameters
+    ----------
+    data : pandas DataFrame
+        A DataFrame containing time series data, with a 'Sea Level' column and a 
+        DatetimeIndex
+    constituents : list of strings
+       A list of tidal constituent names ('M2' and 'S2')
+    start_datetime : datetime.datetime
+        The exact datetime object representing the start time of the analysis period.
+
+    Returns
+    -------
+    A tuple containing the calculated amplitudes and phases. 
+    """
+    # Drop rows where 'Sea Level' data is missing (NaN)
+    data = data.dropna(subset=['Sea Level']).copy()
+    #Initialises an Uptide Tides object, specifiying constituents and initial time
+    tide = uptide.Tides(['M2', 'S2'])
+    tide.set_initial_time(start_datetime)
+    seconds_since = (
+        data.index.astype('int64').to_numpy()/1e9
+    ) - start_datetime.timestamp()
+   # Extracts 'Sea Level] column values as a NumPy array
+    sea_level_values = data['Sea Level'].to_numpy()
+    amp, pha = uptide.harmonic_analysis(
+        tide, 
+        sea_level_values,
+    seconds_since
+    )
+    return amp, pha
+  
 def get_longest_contiguous_data(data):
 
 
