@@ -137,9 +137,33 @@ def join_data(data1, data2):
     return pd.concat(combined_data).sort_index()
     
 def sea_level_rise(data):
+    """
+    Calculates the slope and p-value of sea level rise using linear regression.
+    
+    Parameters
+    ----------
+    data : pandas.DataFrame
+    A DataFrame containing at least 'Date' (as strings like 'YYYY-MM-DD'
+    or 'YYYYMMDD'), 'Time' (as strings like 'HH:MM:SS'), and 'Sea Level' (float).
 
-    return
- 
+    Returns
+    -------
+    tuple: (slope, p_value) from the linear regression (two floats).
+    """
+    # Ensure 'Sea Level' is float and drop NaNs from it first
+    df_clean = data.dropna(subset=['Sea Level'])
+    df_clean['Combined_DateTime'] = pd.to_datetime(
+    df_clean['Date'].astype(str) + ' ' + df_clean['Time'].astype(str),
+    format='%Y/%m/%d %H:%M:%S',
+    errors='coerce'
+    )
+    # Drop rows where datetime conversion failed
+    df_clean = df_clean.dropna(subset=['Combined_DateTime'])   
+    # Convert datetime objects to Matplotlib dates (floats) for linear regression
+    x = mdates.date2num(df_clean['Combined_DateTime'].dt.to_pydatetime()) 
+    y = df_clean['Sea Level'].values
+    slope, _, _, p_value, _ = stats.linregress(x, y)
+    return slope, p_value
 
 def tidal_analysis(data, constituents, start_datetime):
     
