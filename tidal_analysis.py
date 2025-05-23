@@ -1,21 +1,23 @@
 # import the modules you need here
 import argparse
-import pandas as pd
-import matplotlib.pyplot as plt
 import datetime
-import wget
-import os
-import numpy as np
-import uptide
-import pytz
-import math
 import glob
-import datetime
+import math
+import os
+import pytz
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+import numpy as np
+import pandas as pd
 import pytest
+import uptide
+import wget
+from scipy import stats
 
 def read_tidal_data(filename):
     """
-    Reads tidal data from multiple files in a directory, processes it, and returns a pandas DataFrame.
+    Reads tidal data from multiple files in a directory, 
+    processes it, and returns a pandas DataFrame.
    
     Parameters
     ----------
@@ -30,38 +32,31 @@ def read_tidal_data(filename):
     Returns
     -------
     data : pandas DataFrame
-        The DataFrame will include processed tidal data with a DatetimeIndex and a 'Sea Level' column.
+        The DataFrame will include processed tidal data, 
+        with a DatetimeIndex and a 'Sea Level' column.
             Non- numeric entries (e.g. 'M', 'N' and 'T') will be converted to NaN.
     """
-    # Check if file exists. If not, raise error message. 
+    # Check if file exists. If not, raise error message.
     if not os.path.exists(filename):
         raise FileNotFoundError(f'Error: File not found: {filename}')
-    else:
-        #Define expected column names
-        column_names = ['Date_Col', 'Time', 'Sea Level', 'Flag']
-        parse_dates={'Datetime': ['Date_Col', 'Time']}
-        #Specify non-numerical values that should be converted to NaN.
-        na_values=['M', 'N', 'T']
-        #Read the csv file data into a pandas DataFrame.
-        data = pd.read_csv(filename, sep=r'\s+', skiprows=11, names=column_names, na_values=na_values)
-        #Combine 'Date_Col' and 'Time' into a single string,
-        #convert this into a datetime object,
-        #and then set the 'Datetime' column as the DataFrame's index.
-        data['Datetime'] = pd.to_datetime(data['Date_Col'] + ' ' + data['Time'])
-        data.set_index('Datetime', inplace=True)
-        data['Sea Level'] = pd.to_numeric(data['Sea Level'], errors='coerce')
-        """data = data.drop(columns=['Date_Col', 'Flag'], errors='ignore')"""
-        return data
-   
-def test_missing_file_raises_filenotfound():
-#Tests that the read_tidal_data raises FileNotFoundError.
-    with pytest.raises(FileNotFoundError):
-        read_tidal_data('missing_file.dat')
+    # Define expected column names
+    column_names = ['Cycle', 'Date', 'Time', 'Sea Level', 'Residual']
+    parse_dates={'Datetime': ['Date', 'Time']}
+    # Specify non-numerical values that should be converted to NaN.
+    na_values=['M', 'N', 'T']
+    #Read the csv file data into a pandas DataFrame.
+    data = pd.read_csv(filename, sep=r'\s+', skiprows=11, header = None, names=column_names, na_values=na_values)
+    # Combine 'Date_Col' and 'Time' into a single string,
+    # convert this into a datetime object,
+    # and then set the 'Datetime' column as the DataFrame's index.
+    data['Datetime'] = pd.to_datetime(data['Date'] + ' ' + data['Time'])
+    data.set_index('Datetime', inplace=True)
+    data['Sea Level'] = pd.to_numeric(data['Sea Level'], errors='coerce')
     return data
 
 def extract_single_year_remove_mean(year, data):
     """
-    Extracts 'Sea Level' data for a specific year from the DataFrame, then removes the mean
+    Extracts 'Sea Level' data for a specific year from the DataFrame, then removes the mean.
     
     Parameters
     ----------
@@ -73,7 +68,8 @@ def extract_single_year_remove_mean(year, data):
     Returns
     -------
     year_data : pandas.DataFrame
-        A new DataFrame containing 'Sea Level' data for the specified year, with its mean removed from the data. 
+        A new DataFrame containing 'Sea Level' data for the specified year, 
+        with its mean removed from the data. 
     """
     # Construct the start and end date strings and then,
     # extract data from DatetimeIndex,
@@ -86,10 +82,36 @@ def extract_single_year_remove_mean(year, data):
     year_data['Sea Level'] -= mmm
     return year_data
 
-
+# Code from Gemini
 def extract_section_remove_mean(start, end, data):
+    """
+    Extracts a specific time section of 'Sea Level' data from a DataFrme,
+    and removes the mean of that section.
     
-    return
+    Parameters
+    ----------
+    start : string
+        The start date for the section in "YYYYMMDD" format.
+    end : string
+        The end date for the section in "YYYYMMDD" format.
+    data : pandas DataFrame
+        The source DataFrame containing 'Sea Level' data with a DatetimeIndex.
+
+    Returns
+    -------
+    pandas DataFrame
+    A new DataFrame containing the extracted 'Sea Level' data, 
+    with its mean removed.
+    """
+    start_dt = pd.to_datetime(start, format='%Y%m%d')
+    end_dt = pd.to_datetime(end, format='%Y%m%d') + pd.Timedelta(days=1) - pd.Timedelta(hours=1)
+    extracted_section = data.loc[start_dt:end_dt].copy()
+   
+    if 'Sea Level' not in extracted_section.columns:
+        raise ValueError("The 'Sea Level' column is missing in the provided data.")      
+    section_mean = extracted_section['Sea Level'].mean()
+    extracted_section['Sea Level'] -= section_mean
+    return extracted_section
 
 
 def join_data(data1, data2):
@@ -106,25 +128,24 @@ def join_data(data1, data2):
      Returns
      -------
      pandas DataFrame
-         A new DataFrame, combining all rows from data1 and data2, and sorting them chronologically through their DatetimeIndex.
+         A new DataFrame, combining all rows from data1 and data2, 
+         and sorting them chronologically through their DatetimeIndex.
      """
-    #Create a list with two DataFrames to be concatenated, stacking the DataFrames and ordering them chronologically.
+    # Create a list with two DataFrames to be concatenated, 
+    # stacking the DataFrames and ordering them chronologically.
     combined_data = [data1, data2]
     return pd.concat(combined_data).sort_index()
     
-
 def sea_level_rise(data):
 
-                                                     
-    return 
-
+    return
+ 
 
 def tidal_analysis(data, constituents, start_datetime):
-
-
-    return 
-
-
+    
+    return
+   
+ 
 def get_longest_contiguous_data(data):
 
 
@@ -157,44 +178,14 @@ if __name__ == '__main__':
    """
     dirname = 'data'
     verbose = False
-   # Defining dirname 
-    """dirname = os.path.dirname(__file__)
-    print(dirname)
-    """
+  
     
-   
    # glob dir to grab all *.txt files
     filelist = glob.glob(os.path.join(dirname, '**/*.txt'), recursive = True)
    
     if filelist:
-       main_data = read_tidal_data(filelist[0])
-       for single_file in filelist[1:]:
-           data = read_tidal_data(single_file)
-           main_data = join_data(main_data, data)
-        
-      
-    
-           
-
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-    
-
+        main_data = read_tidal_data(filelist[0])
+        for single_file in filelist[1:]:
+            data = read_tidal_data(single_file)
+            main_data = join_data(main_data, data)
+                
