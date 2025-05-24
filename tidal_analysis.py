@@ -1,17 +1,15 @@
+'Copyright 2025, Lois Cole. CC-BY-SA.'
+
 # import the modules you need here
 import argparse
 import datetime
 import glob
-import math
 import os
 import pytz
-import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
 import pandas as pd
-import pytest
 import uptide
-import wget
 from scipy import stats
 
 def read_tidal_data(filename):
@@ -41,11 +39,11 @@ def read_tidal_data(filename):
         raise FileNotFoundError(f'Error: File not found: {filename}')
     # Define expected column names
     column_names = ['Cycle', 'Date', 'Time', 'Sea Level', 'Residual']
-    parse_dates={'Datetime': ['Date', 'Time']}
     # Specify non-numerical values that should be converted to NaN.
     na_values=['M', 'N', 'T']
     #Read the csv file data into a pandas DataFrame.
-    data = pd.read_csv(filename, sep=r'\s+', skiprows=11, header = None, names=column_names, na_values=na_values)
+    data = pd.read_csv(filename, sep=r'\s+', skiprows=11, header = None,
+                       names=column_names, na_values=na_values)
     # Combine 'Date_Col' and 'Time' into a single string,
     # convert this into a datetime object,
     # and then set the 'Datetime' column as the DataFrame's index.
@@ -106,13 +104,11 @@ def extract_section_remove_mean(start, end, data):
     start_dt = pd.to_datetime(start, format='%Y%m%d')
     end_dt = pd.to_datetime(end, format='%Y%m%d') + pd.Timedelta(days=1) - pd.Timedelta(hours=1)
     extracted_section = data.loc[start_dt:end_dt].copy()
-   
     if 'Sea Level' not in extracted_section.columns:
-        raise ValueError("The 'Sea Level' column is missing in the provided data.")      
+        raise ValueError("The 'Sea Level' column is missing in the provided data.")
     section_mean = extracted_section['Sea Level'].mean()
     extracted_section['Sea Level'] -= section_mean
     return extracted_section
-
 
 def join_data(data1, data2):
     """
@@ -131,11 +127,11 @@ def join_data(data1, data2):
          A new DataFrame, combining all rows from data1 and data2, 
          and sorting them chronologically through their DatetimeIndex.
      """
-    # Create a list with two DataFrames to be concatenated, 
+    # Create a list with two DataFrames to be concatenated,
     # stacking the DataFrames and ordering them chronologically.
     combined_data = [data1, data2]
     return pd.concat(combined_data).sort_index()
-    
+
 def sea_level_rise(data):
     """
     Calculates the slope and p-value of sea level rise using linear regression.
@@ -151,6 +147,7 @@ def sea_level_rise(data):
     tuple: (slope, p_value) from the linear regression (two floats).
     """
     # Ensure 'Sea Level' is float and drop NaNs from it first
+    # Ensure 'Sea Level' is float and drop NaNs from it first
     df_clean = data.dropna(subset=['Sea Level'])
     df_clean['Combined_DateTime'] = pd.to_datetime(
     df_clean['Date'].astype(str) + ' ' + df_clean['Time'].astype(str),
@@ -158,9 +155,9 @@ def sea_level_rise(data):
     errors='coerce'
     )
     # Drop rows where datetime conversion failed
-    df_clean = df_clean.dropna(subset=['Combined_DateTime'])   
+    df_clean = df_clean.dropna(subset=['Combined_DateTime'])
     # Convert datetime objects to Matplotlib dates (floats) for linear regression
-    x = mdates.date2num(df_clean['Combined_DateTime'].dt.to_pydatetime()) 
+    x = mdates.date2num(df_clean['Combined_DateTime'].dt.to_pydatetime())
     y = df_clean['Sea Level'].values
     slope, _, _, p_value, _ = stats.linregress(x, y)
     return slope, p_value
@@ -187,7 +184,7 @@ def tidal_analysis(data, constituents, start_datetime):
     # Drop rows where 'Sea Level' data is missing (NaN)
     data = data.dropna(subset=['Sea Level']).copy()
     #Initialises an Uptide Tides object, specifiying constituents and initial time
-    tide = uptide.Tides(['M2', 'S2'])
+    tide = uptide.Tides(constituents)
     tide.set_initial_time(start_datetime)
     seconds_since = (
         data.index.astype('int64').to_numpy()/1e9
@@ -195,49 +192,68 @@ def tidal_analysis(data, constituents, start_datetime):
    # Extracts 'Sea Level] column values as a NumPy array
     sea_level_values = data['Sea Level'].to_numpy()
     amp, pha = uptide.harmonic_analysis(
-        tide, 
+        tide,
         sea_level_values,
     seconds_since
     )
     return amp, pha
-  
+
 def get_longest_contiguous_data(data):
+    # collect all data
+    # compile into list
+    # conclude list when data is Nan
+    # print longest contiguos data
+    """
+    Identifies and returns the longest contiguous segment of data
+    from the input DataFrame. 
+    The segment starts at the beginning of the DataFrame and ends
+    just before the first encountered NaN or invalid data point.
 
+    Parameters
+    ----------
+    data : pandas.DataFrame
+        Input DataFrame expected to have a DatetimeIndex and a 'Sea Level' column.
 
-    return 
-
-
-"""def find_txt_files(directory):
-    return glob.glob(os.path.join(directory, '*.txt'))"""
+    Returns
+    -------
+    pandas.DataFrame
+        The longest contiguous segment of the input DataFrame where 'Sea Level' is not NaN.
+    """
+    if data.empty or 'Sea Level' not in data.columns:
+        print("Input data is empty or 'Sea Level' column is missing.")
+        return pd.DataFrame()
+    
+    nan_indices = data['Sea Level'].isna 
+    if nan_indices.any():
+        first_nan_index_in_series = nan_indices[nan_indices].index[0]
+        contiguous_data = data.loc[:'first_nan_index'].iloc[:-1]
+        stop_index_loc = data.index.get_loc(first_nan_index_in_series)
+        return data.iloc[:stop_index_loc]
+    else:
+        return data
 
 if __name__ == '__main__':
-
-  
-    """
-    parser = argparse.ArgumentParser(
+    """parser = argparse.ArgumentParser(
     prog="UK Tidal analysis",
     description="Calculate tidal constiuents and RSL from tide gauge data",
     epilog="Copyright 2024, Jon Hill"
     )
-       
-   parser.add_argument("directory", default='/data',
-   help="the directory containing txt files with data")
-   parser.add_argument('-v', '--verbose',
-   action='store_true',
-   default=False,
-   help="Print progress")
+
+    parser.add_argument("directory", default='/data',
+    help="the directory containing txt files with data")
+    parser.add_argument('-v', '--verbose',
+    action='store_true',
+    default=False,
+    help="Print progress")
    
-   args = parser.parse_args()
-   dirname = args.directory
-   verbose = args.verbose
-   """
-    dirname = 'data'
-    verbose = False
-  
-    
-   # glob dir to grab all *.txt files
-    filelist = glob.glob(os.path.join(dirname, '**/*.txt'), recursive = True)
-   
+    args = parser.parse_args()
+    DIRNAME = args.directory
+    VERBOSE = args.verbose
+    """
+    INPUT_DIRNAME = 'data'
+    IS_VERBOSE = False
+    # glob dir to grab all *.txt files
+    filelist = glob.glob(os.path.join('data', '**/*.txt'), recursive = True)
     if filelist:
         main_data = read_tidal_data(filelist[0])
         for single_file in filelist[1:]:
