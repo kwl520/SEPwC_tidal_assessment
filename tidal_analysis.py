@@ -77,7 +77,7 @@ def extract_single_year_remove_mean(year, data):
 # Code from Gemini
 def extract_section_remove_mean(start, end, data):
     """
-    Extracts a specific time section of 'Sea Level' data from a DataFrme,
+    Extracts a specific time section of 'Sea Level' data from a DataFrame,
     and removes the mean of that section.
     
     Parameters
@@ -95,11 +95,13 @@ def extract_section_remove_mean(start, end, data):
     A new DataFrame containing the extracted 'Sea Level' data, 
     with its mean removed.
     """
+    # Convert start and end date strings to datetime.
     start_dt = pd.to_datetime(start, format='%Y%m%d')
     end_dt = pd.to_datetime(end, format='%Y%m%d') + pd.Timedelta(days=1) - pd.Timedelta(hours=1)
     extracted_section = data.loc[start_dt:end_dt].copy()
     if 'Sea Level' not in extracted_section.columns:
         raise ValueError("The 'Sea Level' column is missing in the provided data.")
+    # Remove the mean from 'Sea Level' data.
     extracted_section['Sea Level'] -= extracted_section['Sea Level'].mean()
     return extracted_section
 
@@ -163,7 +165,7 @@ def tidal_analysis(data, constituents, start_datetime):
     ----------
     data : pandas DataFrame
         A DataFrame containing time series data, with a 'Sea Level' column and a 
-        DatetimeIndex
+        DatetimeIndex.
     constituents : list of strings
        A list of tidal constituent names ('M2' and 'S2')
     start_datetime : datetime.datetime
@@ -244,13 +246,14 @@ if __name__ == '__main__':
     # Code from gemini.
     if is_verbose:
         print(f"Found {len(filelist)} data files. Compiling...")
-
-    # Store dataframes with their corresponding locations.
+    # Store dataframes in a dictionary, grouped by their locations.
     location_data = {}
+    # Iterate through each file in the provided list.
     for file_path in filelist:
         try:
             current_df = read_tidal_data(file_path)
             if not current_df.empty:
+                # Extract and format location name from the file path.
                 location_name = os.path.basename(os.path.dirname(file_path)
                 ).replace('_data.txt', '').capitalize()
 
@@ -260,8 +263,10 @@ if __name__ == '__main__':
 
                 if is_verbose:
                     print(f"Successfully read {file_path} for {location_name}.")
+            # Warn if the DataFrame is empty.
             elif is_verbose:
                 print(f"Warning: No valid data in {file_path}. Skipping.")
+        # Handle specific exceptions during file processing.
         except FileNotFoundError as e:
             print(f"Error: File not found: {file_path}. {e}")
         except pd.errors.EmptyDataError:
@@ -269,14 +274,14 @@ if __name__ == '__main__':
         except (pd.errors.ParserError, ValueError, KeyError) as e:
             print(f"Error: Malformed data in {file_path}. Details: {e}. Skipping.")
 
-    # Process and print data for each location
+    # Process and print data for each location.
     for location, dfs in location_data.items():
         print(f"\n{'='*50}") # Separator for clarity
         print(f"--- Analysis for {location} ---")
         print(f"{'='*50}")
 
-        compiled_data = pd.concat(dfs).sort_index() if dfs else pd.DataFrame()
         # 1. Compiled Tidal Data Summary (Moved inside the loop)
+        compiled_data = pd.concat(dfs).sort_index() if dfs else pd.DataFrame()
         print("\n--- Compiled Tidal Data Summary ---")
         if len(compiled_data) > 10: # Print head and tail for large dataframes
             print(compiled_data.head())
