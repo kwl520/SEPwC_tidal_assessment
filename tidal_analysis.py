@@ -6,7 +6,6 @@ import glob
 import os
 import pytz
 import matplotlib.dates as mdates
-import numpy as np
 import pandas as pd
 import uptide
 from scipy import stats
@@ -71,12 +70,8 @@ def extract_single_year_remove_mean(year, data):
     # Construct the start and end date strings and then,
     # extract data from DatetimeIndex,
     # and calculate the mean from every 'Sea Level' value in the DataFrame
-    year_string_start = str(year)+"0101"
-    year_string_end = str(year)+"1231"
-    year_data = data.loc[year_string_start:year_string_end, ['Sea Level']]
-    # remove mean to oscillate around zero
-    mmm = np.mean(year_data['Sea Level'])
-    year_data['Sea Level'] -= mmm
+    year_data = data.loc[str(year), ['Sea Level']].copy()
+    year_data['Sea Level'] -= year_data['Sea Level'].mean() # More concise mean removal
     return year_data
 
 # Code from Gemini
@@ -105,8 +100,7 @@ def extract_section_remove_mean(start, end, data):
     extracted_section = data.loc[start_dt:end_dt].copy()
     if 'Sea Level' not in extracted_section.columns:
         raise ValueError("The 'Sea Level' column is missing in the provided data.")
-    section_mean = extracted_section['Sea Level'].mean()
-    extracted_section['Sea Level'] -= section_mean
+    extracted_section['Sea Level'] -= extracted_section['Sea Level'].mean()
     return extracted_section
 
 def join_data(data1, data2):
@@ -155,7 +149,7 @@ def sea_level_rise(data):
     # Drop rows where datetime conversion failed
     df_clean = df_clean.dropna(subset=['Combined_DateTime'])
     # Convert datetime objects to Matplotlib dates (floats) for linear regression
-    x = mdates.date2num(df_clean['Combined_DateTime'].dt.to_pydatetime())
+    x = mdates.date2num(df_clean.index.to_pydatetime())
     y = df_clean['Sea Level'].values
     slope, _, _, p_value, _ = stats.linregress(x, y)
     return slope, p_value
@@ -179,9 +173,12 @@ def tidal_analysis(data, constituents, start_datetime):
     -------
     A tuple containing the calculated amplitudes and phases. 
     """
+    _ = datetime.datetime
     # Drop rows where 'Sea Level' data is missing (NaN)
     data = data.dropna(subset=['Sea Level']).copy()
+    _ = pytz.utc
     #Initialises an Uptide Tides object, specifiying constituents and initial time
+    data.index = data.index.tz_localize('utc')
     tide = uptide.Tides(constituents)
     tide.set_initial_time(start_datetime)
     seconds_since = (
@@ -197,38 +194,86 @@ def tidal_analysis(data, constituents, start_datetime):
     return amp, pha
 
 def get_longest_contiguous_data(data):
- 
-    return
-
+    """
+    Identifies and returns the longest contiguous segment of data
+    from the input DataFrame.
+    The segment starts at the beginning of the DataFrame and ends
+    just before the first encountered NaN or invalid data point.
+    
+    Parameters
+    ----------
+    data : pandas.DataFrame
+        Input DataFrame expected to have a DatetimeIndex and a 'Sea Level' column.
+    
+    Returns
+    -------
+    pandas.DataFrame
+        The longest contiguous segment of the input DataFrame where 'Sea Level' is not NaN.
+        Returns an empty DataFrame if the input is empty or contains no valid contiguous segments.
+     """
+    nan_indices = data['Sea Level'].isna()
+    if nan_indices.any():
+        # Get the index of the first True (first NaN)
+        first_nan_idx_in_series = nan_indices[nan_indices].index[0]
+        # Get the positional integer index of this NaN in the DataFrame's index
+        stop_idx_loc = data.index.get_loc(first_nan_idx_in_series)
+        # Slice the DataFrame up to (but not including) this position
+        return data.iloc[:stop_idx_loc]
+    return data.copy()
 
 if __name__ == '__main__':
-
-    """
     parser = argparse.ArgumentParser(
     prog="UK Tidal analysis",
     description="Calculate tidal constiuents and RSL from tide gauge data",
     epilog="Copyright 2024, Jon Hill"
     )
-       
-   parser.add_argument("directory", default='/data',
-   help="the directory containing txt files with data")
-   parser.add_argument('-v', '--verbose',
-   action='store_true',
-   default=False,
-   help="Print progress")
-   
-   args = parser.parse_args()
-   dirname = args.directory
-   verbose = args.verbose
-   """
-    input_directory = 'data'
-    is_verbose = False 
+    parser.add_argument("directory", default='/data',
+    help="the directory containing txt files with data")
+    parser.add_argument('-v', '--verbose',
+    action='store_true',
+    default=False,
+    help="Print progress")
+    args = parser.parse_args()
+    input_directory = args.directory
+    is_verbose = args.verbose
+    filelist = glob.glob(os.path.join(input_directory, '**/*.txt'), recursive=True)
+    # Code from gemini
+    if is_verbose:
+        print(f"Found {len(filelist)} data files. Compiling...")
+    valid_dataframes = []
+    for file_path in filelist:
+        try:
+            current_df = read_tidal_data(file_path)
+            if not current_df.empty:
+                valid_dataframes.append(current_df)
+                if is_verbose:
+                    print(f"Successfully read {file_path}.")
+            elif is_verbose:
+                print(f"Warning: No valid data in {file_path}. Skipping.")
+        except FileNotFoundError as e:
+            print(f"Error: File not found: {file_path}. {e}")
+        except pd.errors.EmptyDataError:
+            print(f"Error: {file_path} is empty or contains no data. Skipping.")
+        except (pd.errors.ParserError, ValueError, KeyError) as e:
+            print(f"Error: Malformed data in {file_path}. Details: {e}. Skipping.")
 
-    # glob dir to grab all *.txt files
-    filelist = glob.glob(os.path.join(dirname, '**/*.txt'), recursive = True)
-    if filelist:
-        main_data = read_tidal_data(filelist[0])
-        for single_file in filelist[1:]:
-            data = read_tidal_data(single_file)
-            main_data = join_data(main_data, data)
-              
+    # Concatenate all valid DataFrames
+    compiled_data = pd.concat(valid_dataframes).sort_index(
+        ) if valid_dataframes else pd.DataFrame()
+    if is_verbose and not compiled_data.empty:
+        print(f"Total compiled data points: {len(compiled_data)}")
+
+    # Perform and report analysis if data is available
+    if not compiled_data.empty:
+        if is_verbose:
+            print("\nPerforming analysis on compiled data...")
+        slope_val, p_value_val = sea_level_rise(compiled_data)
+        if is_verbose:
+            print(f"Calculated Sea Level Rise Slope: {slope_val:.6e} units/time")
+            print(f"P-value for Sea Level Rise: {p_value_val:.4f}")
+            print("Tidal analysis complete. Detailed output provided.")
+        else:
+            print(f"Analysis completed successfully. Slope: {slope_val:.6e}."
+                  "A brief summary is printed.")
+    else:
+        print("Analysis did not proceed due to no valid data. Please check input files.")
