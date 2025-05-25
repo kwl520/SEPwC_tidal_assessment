@@ -179,7 +179,7 @@ def tidal_analysis(data, constituents, start_datetime):
     # Drop rows where 'Sea Level' data is missing (NaN).
     data = data.dropna(subset=['Sea Level']).copy()
     _ = pytz.utc
-    # Initialises an Uptide Tides object, specifiying constituents and initial time.
+    # Initialises an Uptide Tides object, specifying constituents and initial time.
     data.index = data.index.tz_localize('utc')
     tide = uptide.Tides(constituents)
     tide.set_initial_time(start_datetime)
@@ -276,32 +276,32 @@ if __name__ == '__main__':
 
     # Process and print data for each location.
     for location, dfs in location_data.items():
-        print(f"\n{'='*50}") # Separator for clarity
+        print(f"\n{'='*50}") # Separator for clarity.
         print(f"--- Analysis for {location} ---")
         print(f"{'='*50}")
 
-        # 1. Compiled Tidal Data Summary (Moved inside the loop)
+        # 1. Compiled Tidal Data Summary.
         compiled_data = pd.concat(dfs).sort_index() if dfs else pd.DataFrame()
         print("\n--- Compiled Tidal Data Summary ---")
-        if len(compiled_data) > 10: # Print head and tail for large dataframes
+        if len(compiled_data) > 10: # Print head and tail for large dataframes.
             print(compiled_data.head())
             print("...")
             print(compiled_data.tail())
-        else: # Print entire dataframe if small
+        else: # Print entire dataframe if small.
             print(compiled_data)
         print(f"Data range: {compiled_data.index.min().strftime('%Y-%m-%d %H:%M:%S')} to"
               "{compiled_data.index.max().strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"Total data points: {len(compiled_data)}")
         print("---------------------------------")
 
-        # 2. Sea Level Rise
+        # 2. Sea Level Rise.
         slope_val, p_value_val = sea_level_rise(compiled_data)
         if slope_val is not None and p_value_val is not None:
             print("\n--- Sea Level Rise ---")
             print(f"Calculated Sea Level Rise Slope for {location}: {slope_val:.6e} units/time")
             print(f"P-value for Sea Level Rise for {location}: {p_value_val:.4f}")
 
-        # 3. Longest Contiguous Period of Data
+        # 3. Longest Contiguous Period of Data.
         longest_contiguous_df = get_longest_contiguous_data(compiled_data)
         print("\n--- Longest Contiguous Period of Data ---")
         if not longest_contiguous_df.empty:
